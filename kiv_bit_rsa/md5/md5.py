@@ -89,8 +89,6 @@ class Md5:
         # extract 32 bit uints from block
         block = [i[0] for i in iter_unpack("<I", block)]
 
-        print(block)
-
         for i in range(64):
             f = 0
             k = cls._k[i]
@@ -115,8 +113,6 @@ class Md5:
             d = c
             c = b
             b = (b + cls._rotate_left(f, s)) & 0xffffffff
-
-            print(i, a, b, c, d)
 
         return a, b, c, d
 
@@ -149,6 +145,9 @@ class Md5:
         """
 
         # TODO: optimize
+
+        if isinstance(data, str):
+            data = data.encode("utf8")
 
         for byte in data:
             self._buffer.append(byte)
