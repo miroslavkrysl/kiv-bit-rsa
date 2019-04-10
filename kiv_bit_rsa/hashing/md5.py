@@ -1,9 +1,13 @@
 from struct import iter_unpack, pack
 
+from kiv_bit_rsa.hashing.base import HashingMethod
 
-class Md5:
-    """The class representing an md5 hash object.
+
+class Md5(HashingMethod):
+    """The class representing an MD5 hash object.
     """
+
+    _block_size = 64
 
     _a_init = 0x67452301
     _b_init = 0xefcdab89
@@ -35,7 +39,7 @@ class Md5:
     def __init__(self, data=None):
         """Initialize an MD5 hash object with optional initial data.
 
-        :param data: The initial data, must by bytes-like object.
+        :param data: The initial data, must be a bytes-like object.
         """
 
         self._buffer = bytearray()
@@ -48,26 +52,113 @@ class Md5:
         if data:
             self.update(data)
 
+    @classmethod
+    def block_size(cls):
+        """Get size of the hashing method data block.
+
+        Get the size if the bytes block that is processed
+        during one round of the method.
+
+        :return: Size of the block in bytes.
+        """
+
+        return cls._block_size
+
+    def update(self, data):
+        """Update the hash object.
+
+        :param data: The data to update the hash, must be a bytes-like object.
+        """
+
+        # TODO: optimize
+
+        for byte in data:
+            self._buffer.append(byte)
+            self._size += 1 % 64
+
+            if len(self._buffer) == 64:
+                hashed = self._hash_block(self._buffer)
+
+                self._state = [(s + h) & 0xffffffff for s, h in zip(self._state, hashed)]
+
+                self._buffer.clear()
+
+    def digest(self):
+        """Get the hash object digest as bytes.
+
+        :return: The bytes of size 32 representing the digest.
+        """
+        return b''.join([pack("<I", i) for i in self._finalize()])
+
+    def hex_digest(self):
+        """Get the hash object digest as a hex string.
+
+        :return: The hexadecimal number as a string of size 32 representing the digest.
+        """
+
+        return ''.join([format(i, '>02x') for i in self.digest()])
+
     @staticmethod
     def _f(b, c, d):
+        """Function F used in hashing: (b & c) | (~b & d).
+
+        Computes in 32 bit arithmetic.
+
+        :param b: The hash part B.
+        :param c: The hash part C.
+        :param d: The hash part D.
+        :return: Result of function F.
+        """
+
         return (b & c) | ((b ^ 0xffffffff) & d)
 
     @staticmethod
     def _g(b, c, d):
+        """Function G used in hashing: (b & d) | (c & ~d).
+
+        Computes in 32 bit arithmetic.
+
+        :param b: The hash part B.
+        :param c: The hash part C.
+        :param d: The hash part D.
+        :return: Result of function G.
+        """
+
         return (b & d) | (c & (d ^ 0xffffffff))
 
     @staticmethod
     def _h(b, c, d):
+        """Function H used in hashing = b ^ c ^ d.
+
+        Computes in 32 bit arithmetic.
+
+        :param b: The hash part B.
+        :param c: The hash part C.
+        :param d: The hash part D.
+        :return: Result of function H.
+        """
+
         return b ^ c ^ d
 
     @staticmethod
     def _i(b, c, d):
+        """Function I used in hashing = c ^ (b | ~d).
+
+        Computes in 32 bit arithmetic.
+
+        :param b: The hash part B.
+        :param c: The hash part C.
+        :param d: The hash part D.
+        :return: Result of function I.
+        """
+
         return c ^ (b | (d ^ 0xffffffff))
 
     @staticmethod
     def _rotate_left(num, bits):
-        """
-        Rotate the `num` `bits` bits left using the 32bit unsigned rotation.
+        """Rotate the `num` `bits` bits left using the 32bit unsigned rotation.
+
+        Computes in 32 bit arithmetic.
 
         :param num: The number to be rotated.
         :param bits: The number of bits.
@@ -78,10 +169,10 @@ class Md5:
 
     @classmethod
     def _hash_block(cls, block):
-        """
-        Hash the block and add the hash into `_state`
+        """Hash the block and add the hash into `_state`
 
         :param block: The 64 bytes long block to be hashed.
+        :return: The block hash - tuple of ints (A, B, C, D)
         """
 
         a, b, c, d = cls._a_init, cls._b_init, cls._c_init, cls._d_init
@@ -90,9 +181,7 @@ class Md5:
         block = [i[0] for i in iter_unpack("<I", block)]
 
         for i in range(64):
-            f = 0
             k = cls._k[i]
-            m = 0
             s = cls._s[i]
 
             if i < 16:
@@ -117,10 +206,9 @@ class Md5:
         return a, b, c, d
 
     def _finalize(self):
-        """
-        Get finalized hash.
+        """Get finalized hash.
 
-        :return: The hash tuple of ints - (A, B, C, D)
+        :return: The final hash - tuple of ints (A, B, C, D)
         """
 
         # pad the data with byte 0b10000000
@@ -135,41 +223,4 @@ class Md5:
 
         hashed = self._hash_block(block)
 
-        return [(s + h) & 0xffffffff for s, h in zip(self._state, hashed)]
-
-    def update(self, data):
-        """
-        Update the hash with given bytes.
-
-        :param data: The bytes-like object.
-        """
-
-        # TODO: optimize
-
-        if isinstance(data, str):
-            data = data.encode("utf8")
-
-        for byte in data:
-            self._buffer.append(byte)
-            self._size += 1 % 64
-
-            if len(self._buffer) == 64:
-                hashed = self._hash_block(self._buffer)
-
-                self._state = [(s + h) & 0xffffffff for s, h in zip(self._state, hashed)]
-
-                self._buffer.clear()
-
-    def digest(self):
-        """
-        Get the digest in bytes.
-        :return: The digest bytes.
-        """
-        return b''.join([pack("<I", i) for i in self._finalize()])
-
-    def hex_digest(self):
-        """
-        Get the digest in hexadecimal representation.
-        :return: The hex string.
-        """
-        return ''.join([format(i, '>02x') for i in self.digest()])
+        return tuple(((s + h) & 0xffffffff) for s, h in zip(self._state, hashed))
