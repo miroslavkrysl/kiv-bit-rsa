@@ -1,6 +1,6 @@
 """Base class for hashing methods.
 
-Every hashing method should inherit from the class :py:class:`HashingMethod`.
+Every hashing method should inherit from the class :py:class:`kiv_bit_rsa.hashing.HashingMethod`.
 """
 
 from abc import ABC, abstractmethod
