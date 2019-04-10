@@ -1,3 +1,6 @@
+"""MD5 hash implementation.
+"""
+
 from struct import iter_unpack, pack
 
 from kiv_bit_rsa.hashing.base import HashingMethod
