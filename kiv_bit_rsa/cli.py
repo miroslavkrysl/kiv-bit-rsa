@@ -1,4 +1,4 @@
-"""CLI interface module for RSA.
+"""CLI interface module for kiv_bit_rsa.
 
 Consists of key generation, encryption/decryption and file
 signing and verifying
