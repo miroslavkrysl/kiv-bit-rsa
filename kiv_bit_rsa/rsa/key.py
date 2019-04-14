@@ -30,20 +30,21 @@ class Key(ABC):
 
         doc = document()
 
-        doc.add("title", "rsa-key")
-        doc.add("implementation", "mkrsa")
+        impl = table()
+        impl.add("name", "mkrsa")
 
         if isinstance(self, PublicKey):
             t = "public"
         else:
             t = "private"
 
-        tab = table()
-        tab.add("type", t)
-        tab.add("exp", self.exp)
-        tab.add("mod", self.mod)
+        key = table()
+        key.add("type", t)
+        key.add("exp", self.exp)
+        key.add("mod", self.mod)
 
-        doc.add("key", tab)
+        doc.add("implementation", impl)
+        doc.add("key", key)
 
         return dumps(doc)
 
@@ -57,10 +58,9 @@ class Key(ABC):
         try:
             doc = parse(string)
 
-            if doc['title'] != 'rsa-key':
-                raise Exception()
+            impl = doc['implementation']
 
-            if doc['implementation'] != 'mkrsa':
+            if impl['name'] != 'mkrsa':
                 raise Exception()
 
             key = doc['key']
