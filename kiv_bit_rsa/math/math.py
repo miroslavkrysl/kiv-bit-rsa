@@ -63,7 +63,7 @@ def random_prime(n_bits):
         num |= 1
 
         # make sure the number has exactly n_bits
-        num |= 2 ** (n_bits - 1)
+        num |= (2 << (n_bits - 1))
 
         if is_prime(num):
             return num
