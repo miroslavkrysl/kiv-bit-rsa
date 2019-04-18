@@ -6,7 +6,7 @@ signing and verifying
 
 import click
 
-from kiv_bit_rsa.rsa import generate_keys
+from kiv_bit_rsa.rsa.key import Key
 
 
 @click.group()
@@ -22,6 +22,8 @@ def cli():
 def keygen(bits, private, public):
     """Generate pair of RSA keys."""
 
+    from kiv_bit_rsa.rsa import generate_keys
+
     keys = generate_keys(bits)
 
     private.write(keys['private'].to_toml())
@@ -30,20 +32,36 @@ def keygen(bits, private, public):
 
 @click.command()
 @click.option('-k', '--key_file', 'key', required=True, type=click.File("r"), help='filepath of the encryption key')
-@click.option('-f', '--input', 'inp', default="-", type=click.File('r'), help='filepath where to read message from')
-@click.option('-o', '--output', 'out', default="-", type=click.File('w'), help='filepath where to print encrypted message into')
-def encrypt(key, input, output):
+@click.option('-f', '--input', 'inp', default="-", type=click.File('rb'), help='filepath where to read message from')
+@click.option('-o', '--output', 'out', default="-", type=click.File('wb'), help='filepath where to print encrypted message into')
+def encrypt(key, inp, out):
     """Encrypt a message using the RSA key."""
-    click.echo('Encrypting')
+
+    from kiv_bit_rsa.rsa import encrypt
+
+    k = Key.from_toml(key.read())
+
+    p = inp.read()
+    c = encrypt(p, k)
+
+    out.write(c)
 
 
 @click.command()
 @click.option('-k', '--key_file', 'key', required=True, type=click.File("r"), help='filepath of the decryption key')
-@click.option('-f', '--input', 'inp', default="-", type=click.File('r'), help='filepath where to read encrypted message from')
-@click.option('-o', '--output', 'out', default="-", type=click.File('w'), help='filepath where to print decrypted message into')
+@click.option('-f', '--input', 'inp', default="-", type=click.File('rb'), help='filepath where to read encrypted message from')
+@click.option('-o', '--output', 'out', default="-", type=click.File('wb'), help='filepath where to print decrypted message into')
 def decrypt(key, inp, out):
     """Decrypt a message using the RSA key."""
-    click.echo('Decrypting')
+
+    from kiv_bit_rsa.rsa import decrypt
+
+    k = Key.from_toml(key.read())
+
+    c = inp.read()
+    p = decrypt(c, k)
+
+    out.write(p)
 
 
 @click.command()
