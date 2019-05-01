@@ -1,93 +1,125 @@
-"""RSA public and private keys"""
+"""RSA public and private keys
 
+"""
+import math
 from abc import ABC
 
-from tomlkit import dumps
-from tomlkit import parse, document, table
-from tomlkit.exceptions import TOMLKitError
+from kiv_bit_rsa.exception import KivBitRsaError
 
 
-class KeyFileError(Exception):
-    """Bad RSA key file"""
+class KeyFileError(KivBitRsaError):
+    """RSA key file is in wrong format"""
 
 
-class Key(ABC):
+class RsaKey(ABC):
     """Base class for RSA keys."""
 
-    __slots__ = ['_exp', '_mod']
+    def __init__(self,
+                 exp: int,
+                 mod: int):
+        """Initialize RSA key.
 
-    _key_types = ['public', 'private']
-
-    def __init__(self, exp, mod):
+        :param exp: The key exponent.
+        :param mod: The key modulus.
+        """
         self._exp = exp
         self._mod = mod
 
-    def to_toml(self):
-        """Dumps the key to a TOML string.
-
-        :return: The string in TOML format.
-        """
-
-        doc = document()
-
-        impl = table()
-        impl.add("name", "mkrsa")
-
-        if isinstance(self, PublicKey):
-            t = "public"
-        else:
-            t = "private"
-
-        key = table()
-        key.add("type", t)
-        key.add("exp", self.exp)
-        key.add("mod", self.mod)
-
-        doc.add("implementation", impl)
-        doc.add("key", key)
-
-        return dumps(doc)
-
-    @classmethod
-    def from_toml(cls, string):
-        """Load the key from TOML string.
-
-        :param string: The string in TOML format.
-        """
-
-        try:
-            doc = parse(string)
-
-            impl = doc['implementation']
-
-            if impl['name'] != 'mkrsa':
-                raise Exception()
-
-            key = doc['key']
-
-            if key['type'] not in cls._key_types:
-                raise Exception()
-
-            if key['type'] == 'public':
-                return PublicKey(key['exp'], key['mod'])
-            else:
-                return PrivateKey(key['exp'], key['mod'])
-
-        except TOMLKitError:
-            raise KeyFileError('Key TOML string is in bad format.')
-
     @property
-    def exp(self):
+    def exp(self) -> int:
+        """Get the key exponent.
+        :return: The key exponent.
+        """
         return self._exp
 
     @property
-    def mod(self):
+    def mod(self) -> int:
+        """Get the key modulus.
+        :return: The key modulus.
+        """
         return self._mod
 
+    def byte_size(self) -> int:
+        """Get the number of the required bytes to store
+        the key modulus.
 
-class PublicKey(Key):
+        :return: The number of bytes.
+        """
+        return math.ceil(self._mod.bit_length() / 8)
+
+    def encrypt_int(self,
+                    num: int) -> int:
+        """Encrypt integer `num`.
+
+        RSA can only encrypt a number smaller than the key (num < key.mod).
+
+        :param num: The number to be encrypted.
+        :return: Encrypted `num`.
+        """
+
+        if num >= self._mod:
+            raise OverflowError("Integer {} is too big for encryption".format(num))
+
+        return pow(num, self._exp, self._mod)
+
+    def decrypt_int(self,
+                    num: int) -> int:
+        """Decrypt integer `num`.
+
+        RSA can only decrypt a number smaller than the key (num < key.mod).
+
+        :param num: The number to be decrypted.
+        :return: Decrypted `num`.
+        """
+
+        if num >= self._mod:
+            raise OverflowError("Integer {} is too big for decryption".format(num))
+
+        return pow(num, self._exp, self._mod)
+
+    def encrypt(self,
+                message: PlainText) -> Cipher:
+        """Encrypt `message`.
+
+        :param message: The message to be encrypted - must be a bytes-like object.
+        :param k: The key - instance of :py:class:`kiv_bit_rsa.rsa.Key`.
+        :return: Encrypted `message`.
+        """
+
+        e, n = k.exp, k.mod
+
+        p = message.to_int(self.byte_size())
+
+        c = pow(message, e, n)
+
+        cipher = c.to_bytes(key_len, 'big')
+
+        return cipher
+
+    def decrypt(cipher, k):
+        """Decrypt `cipher` with key `k`.
+
+        The message bytes sequence is treated as big endian integer.
+
+        :param cipher: The message to be decrypted - must be a bytes-like object.
+        :param k: The key - instance of :py:class:`kiv_bit_rsa.rsa.Key`.
+        :return: Encrypted `message`.
+        """
+
+        d, n = k.exp, k.mod
+
+        cipher = int.from_bytes(cipher, 'big')
+
+        p = pow(cipher, d, n)
+
+        message = p.to_bytes(key_len, "big")
+        message = unpad_bytes(message)
+
+        return message
+
+class RsaPublicKey(RsaKey):
     """RSA public key."""
 
 
-class PrivateKey(Key):
+class RsaPrivateKey(RsaKey):
     """RSA private key."""
