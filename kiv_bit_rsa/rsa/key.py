@@ -4,14 +4,8 @@
 import math
 from abc import ABC
 
-from kiv_bit_rsa.exception import KivBitRsaError
 
-
-class KeyFileError(KivBitRsaError):
-    """RSA key file is in wrong format"""
-
-
-class RsaKey(ABC):
+class Key(ABC):
     """Base class for RSA keys."""
 
     def __init__(self,
@@ -117,9 +111,39 @@ class RsaKey(ABC):
 
         return message
 
-class RsaPublicKey(RsaKey):
+
+class PublicKey(Key):
     """RSA public key."""
 
 
-class RsaPrivateKey(RsaKey):
+class PrivateKey(Key):
     """RSA private key."""
+
+
+class KeyPair:
+    """Pair consisting of RSA private key and public key."""
+
+    def __init__(self, private_key: PrivateKey, public_key: PublicKey):
+        """Initialize key pair.
+
+        :param private_key: The private key.
+        :param public_key: The public key.
+        """
+        self._private_key = private_key
+        self._public_key = public_key
+
+    @property
+    def private_key(self) -> PrivateKey:
+        """Get the private key.
+
+        :return: The private key.
+        """
+        return self._private_key
+
+    @property
+    def public_key(self) -> PublicKey:
+        """Get the public key.
+
+        :return: The public key.
+        """
+        return self._public_key
