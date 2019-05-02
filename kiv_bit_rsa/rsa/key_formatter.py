@@ -1,3 +1,5 @@
+"""RSA key formatters for converting keys to string representation"""
+
 from abc import abstractmethod, ABC
 
 import toml

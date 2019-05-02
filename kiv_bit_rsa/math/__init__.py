@@ -1,4 +1,5 @@
 """Math module
+
 A simple math module containing a couple of mathematical functions
 used by the RSA cipher.
 """

@@ -1,5 +1,4 @@
-"""RSA public and private keys
-
+"""RSA public key, private key and key pair.
 """
 import math
 from abc import ABC

@@ -5,7 +5,8 @@ from random import getrandbits
 from random import randrange
 
 
-def is_prime(num, rounds=40):
+def is_prime(num: int,
+             rounds: int = 40) -> bool:
     """Test if `num` is prime number.
 
     Uses the Miller-Rabin probabilistic primality test.
@@ -48,10 +49,10 @@ def is_prime(num, rounds=40):
     return True
 
 
-def random_prime(n_bits):
+def random_prime(n_bits: int):
     """Generate a prime number with length of `n_bits`.
 
-    :param n_bits: Number of bits ot the prime.
+    :param n_bits: Number of bits of the prime.
     :return: Random prime.
     """
 
@@ -69,7 +70,8 @@ def random_prime(n_bits):
             return num
 
 
-def mod_inverse(a, n):
+def mod_inverse(a: int,
+                n: int) -> int:
     """
     Compute the modular multiplicative inverse of `a` modulo `n`.
 
