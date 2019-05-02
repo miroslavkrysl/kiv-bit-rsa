@@ -5,174 +5,146 @@ from math import gcd, ceil
 from random import randint
 
 from kiv_bit_rsa.math import random_prime, mod_inverse
-from kiv_bit_rsa.package import KivBitRsaError
-from kiv_bit_rsa.rsa.key import PrivateKey, PublicKey
+from kiv_bit_rsa.exception import KivBitRsaError
+from kiv_bit_rsa.rsa.key import PrivateKey, PublicKey, KeyPair, Key
 
 
-class WrongPaddingError(KivBitRsaError):
-    """Message is badly padded"""
+class RsaError(KivBitRsaError):
+    """Base class for RSA cipher errors"""
 
 
-def byte_len(num):
-    """Get number of required bytes for integer `num`.
-
-    :param num: The number to check for required bytes.
-    :return: The number of bytes required by `num`.
-    """
-
-    if num == 0:
-        return 1
-
-    return ceil(num.bit_length() / 8)
+class WrongPaddingError(RsaError):
+    """Message is badly padded."""
 
 
-def pad_bytes(message, length):
-    """Pad message with into desired `length`.
-
-    :param message: The message to pad.
-    :param length: The message length wanted after pad.
-    :return: Padded message.
-    """
-
-    if len(message) + 3 > length:
-        raise OverflowError('Message is too long for padding')
-
-    n_pad_bytes = length - len(message) - 2
-
-    message = b''.join([
-        b'\x00',
-        b'\xFF' * n_pad_bytes,
-        b'\x00',
-        message
-    ])
-
-    return message
+class KeyTooShortError(RsaError):
+    """Key length is too small."""
 
 
-def unpad_bytes(message):
-    """Remove padding from the message.
+class Rsa:
+    """RSA cipher."""
 
-    :param message: The message to unpad.
-    :return: Unpadded message.
-    """
+    KEY_LEN_MIN = 16
+    """Minimum length of the key modulus"""
 
-    if message[0:2] != b'\x00\xFF':
-        raise WrongPaddingError("Padded message doesn't start with bytes 0x00 0xFF")
+    PAD_BYTE_START = b'\x00'
+    """First byte of padding"""
 
-    try:
-        message_start = message.index(b'\x00', 2) + 1
-    except ValueError:
-        raise WrongPaddingError("Message starts with bytes 0x00 0xFF, but doesn't contain message start byte 0x00")
+    PAD_BYTE_FILL = b'\xFF'
+    """Middle (fill) byte of padding"""
 
-    return message[message_start:]
+    PAD_BYTE_END = b'\x00'
+    """Last byte of padding"""
 
+    BYTE_ORDER = 'big'
+    """Message bytes to int byte order."""
 
-def generate_keys(n_bits=2048):
-    """Generate RSA private and public keys of size n_bits.
+    def generate_keys(self, n_bits: int = 2048) -> KeyPair:
+        """Generate RSA private and public keys of size n_bits.
 
-    :param n_bits: Number of key modulus bits.
-    :return: Dict consisting of {'private': PrivateKey, 'public': PublicKey}.
-    """
+        :param n_bits: Number of key modulus bits.
+        :return: The key pair.
+        """
 
-    if n_bits < 16:
-        raise ValueError('Key is too small')
+        if n_bits < self.KEY_LEN_MIN:
+            raise KeyTooShortError('Key is too small. Minimum is {}'.format(self.KEY_LEN_MIN))
 
-    p = random_prime(n_bits // 2)
-    q = random_prime(n_bits // 2)
+        p = random_prime(n_bits // 2)
+        q = random_prime(n_bits // 2)
 
-    n = p * q
-    x = (p - 1) * (q - 1)
+        n = p * q
+        x = (p - 1) * (q - 1)
 
-    # get random number for public key
-    while True:
-        e = randint(1, x - 1)
+        # get random number for public key
+        while True:
+            e = randint(1, x - 1)
 
-        if gcd(e, x) == 1:
-            break
+            if gcd(e, x) == 1:
+                break
 
-    # get multiplicative inverse for private key
-    d = mod_inverse(e, x)
+        # get multiplicative inverse for private key
+        d = mod_inverse(e, x)
 
-    return {'private': PrivateKey(d, n), 'public': PublicKey(e, n)}
+        return KeyPair(PrivateKey(d, n), PublicKey(e, n))
 
+    def encrypt(self,
+                message: bytes,
+                key: Key) -> bytes:
+        """Encrypt `message` with key `key`.
 
-def encrypt_int(num, k):
-    """Encrypt `num` with key `k`.
+        :param message: The message to encrypt.
+        :param key: The encryption key.
+        :return: Encrypted `message`.
+        """
 
-    RSA can only encrypt a number smaller than the key (modulus `n`).
+        p = int.from_bytes(self._pad_message(message, key.byte_size()), self.BYTE_ORDER)
 
-    :param num: The number to be encrypted.
-    :param k: The key - instance of :py:class:`kiv_bit_rsa.rsa.Key`.
-    :return: Encrypted `num`.
-    """
+        c = key.encrypt(p)
 
-    e, n = k.exp, k.mod
+        return c.to_bytes(key.byte_size(), self.BYTE_ORDER)
 
-    if num >= n:
-        raise OverflowError("Message is too big for encryption")
+    def decrypt(self,
+                cipher: bytes,
+                key: Key) -> bytes:
+        """Decrypt `cipher` with key `key`.
 
-    return pow(num, e, n)
+        The message bytes sequence is treated as big endian integer.
 
+        :param cipher: The cipher to decrypt.
+        :param key: The decryption key.
+        :return: Decrypted `cipher`.
+        """
 
-def decrypt_int(num, k):
-    """Decrypt `num` with key `k`.
+        c = int.from_bytes(cipher, self.BYTE_ORDER)
 
-    RSA can only decrypt a number smaller than the key (modulus `n`).
+        p = key.decrypt(c)
 
-    :param num: The number to be decrypted.
-    :param k: The key - instance of :py:class:`kiv_bit_rsa.rsa.Key`.
-    :return: Decrypted `num`.
-    """
+        return self._unpad_message(p.to_bytes(key.byte_size(), self.BYTE_ORDER))
 
-    d, n = k.exp, k.mod
+    def _pad_message(self,
+                     message: bytes,
+                     length: int) -> bytes:
+        """Pad message into desired `length`.
 
-    if num >= n:
-        raise OverflowError("Message is too big for decryption")
+        :param message: The message to pad.
+        :param length: The message length wanted after pad.
+        :return: Padded message.
+        """
 
-    return pow(num, d, n)
+        if len(message) + 3 > length:
+            raise OverflowError('Message is too long for padding to {} bytes'.format(length))
 
+        n_pad_bytes = length - len(message) - 2
 
-def encrypt(message, k):
-    """Encrypt `message` with key `k`.
+        padded = b''.join([
+            self.PAD_BYTE_START,
+            self.PAD_BYTE_FILL * n_pad_bytes,
+            self.PAD_BYTE_END,
+            message
+        ])
 
-    The message bytes sequence is treated as big endian integer.
+        return padded
 
-    :param message: The message to be encrypted - must be a bytes-like object.
-    :param k: The key - instance of :py:class:`kiv_bit_rsa.rsa.Key`.
-    :return: Encrypted `message`.
-    """
+    def _unpad_message(self,
+                       message: bytes) -> bytes:
+        """Remove padding from the message.
 
-    e, n = k.exp, k.mod
-    key_len = byte_len(n)
+        :param message: The message to unpad.
+        :return: Unpadded message.
+        """
 
-    message = pad_bytes(message, key_len)
-    message = int.from_bytes(message, 'big')
+        if message[0:2] != self.PAD_BYTE_START + self.PAD_BYTE_FILL:
+            raise WrongPaddingError(
+                "Padded message doesn't start with bytes {} {}".format(self.PAD_BYTE_START, self.PAD_BYTE_FILL))
 
-    c = pow(message, e, n)
+        try:
+            message_start = message.index(self.PAD_BYTE_END, 2) + 1
+        except ValueError:
+            raise WrongPaddingError(
+                "Message starts with bytes {} {}, but doesn't contain message start byte {}".format(
+                    self.PAD_BYTE_START,
+                    self.PAD_BYTE_FILL,
+                    self.PAD_BYTE_END
+                ))
 
-    cipher = c.to_bytes(key_len, 'big')
-
-    return cipher
-
-
-def decrypt(cipher, k):
-    """Decrypt `cipher` with key `k`.
-
-    The message bytes sequence is treated as big endian integer.
-
-    :param cipher: The message to be decrypted - must be a bytes-like object.
-    :param k: The key - instance of :py:class:`kiv_bit_rsa.rsa.Key`.
-    :return: Encrypted `message`.
-    """
-
-    d, n = k.exp, k.mod
-    key_len = byte_len(n)
-
-    cipher = int.from_bytes(cipher, 'big')
-
-    p = pow(cipher, d, n)
-
-    message = p.to_bytes(key_len, "big")
-    message = unpad_bytes(message)
-
-    return message
+        return message[message_start:]

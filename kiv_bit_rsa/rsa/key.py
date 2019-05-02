@@ -41,8 +41,8 @@ class Key(ABC):
         """
         return math.ceil(self._mod.bit_length() / 8)
 
-    def encrypt_int(self,
-                    num: int) -> int:
+    def encrypt(self,
+                num: int) -> int:
         """Encrypt integer `num`.
 
         RSA can only encrypt a number smaller than the key (num < key.mod).
@@ -56,8 +56,8 @@ class Key(ABC):
 
         return pow(num, self._exp, self._mod)
 
-    def decrypt_int(self,
-                    num: int) -> int:
+    def decrypt(self,
+                num: int) -> int:
         """Decrypt integer `num`.
 
         RSA can only decrypt a number smaller than the key (num < key.mod).
@@ -70,46 +70,6 @@ class Key(ABC):
             raise OverflowError("Integer {} is too big for decryption".format(num))
 
         return pow(num, self._exp, self._mod)
-
-    def encrypt(self,
-                message: PlainText) -> Cipher:
-        """Encrypt `message`.
-
-        :param message: The message to be encrypted - must be a bytes-like object.
-        :param k: The key - instance of :py:class:`kiv_bit_rsa.rsa.Key`.
-        :return: Encrypted `message`.
-        """
-
-        e, n = k.exp, k.mod
-
-        p = message.to_int(self.byte_size())
-
-        c = pow(message, e, n)
-
-        cipher = c.to_bytes(key_len, 'big')
-
-        return cipher
-
-    def decrypt(cipher, k):
-        """Decrypt `cipher` with key `k`.
-
-        The message bytes sequence is treated as big endian integer.
-
-        :param cipher: The message to be decrypted - must be a bytes-like object.
-        :param k: The key - instance of :py:class:`kiv_bit_rsa.rsa.Key`.
-        :return: Encrypted `message`.
-        """
-
-        d, n = k.exp, k.mod
-
-        cipher = int.from_bytes(cipher, 'big')
-
-        p = pow(cipher, d, n)
-
-        message = p.to_bytes(key_len, "big")
-        message = unpad_bytes(message)
-
-        return message
 
 
 class PublicKey(Key):
