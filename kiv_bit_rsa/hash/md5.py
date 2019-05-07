@@ -1,6 +1,7 @@
 """MD5 hash implementation.
 """
 
+from __future__ import annotations
 from struct import iter_unpack, pack
 from typing import Tuple, List, cast
 
@@ -23,6 +24,8 @@ class Md5(Hash):
     """
 
     _block_size = 64
+
+    _name = "MD5"
 
     _a_init = 0x67452301
     _b_init = 0xefcdab89
@@ -61,12 +64,12 @@ class Md5(Hash):
         self._buffer = bytearray()
         self._size = 0
 
-        self._state = (
+        self._state = [
             self._a_init,
             self._b_init,
             self._c_init,
             self._d_init
-        )
+        ]
 
         if data:
             self.update(data)
@@ -83,6 +86,14 @@ class Md5(Hash):
         """
 
         return cls._block_size
+
+    @classmethod
+    def name(cls) -> str:
+        """Get hash methods name.
+
+        :return: The name of the hash method.
+        """
+        return cls._name
 
     def update(self,
                data: bytes):

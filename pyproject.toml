@@ -8,10 +8,9 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.7"
 click = "^7.0"
-tomlkit = "^0.5.3"
+toml = "^0.10.0"
 
 [tool.poetry.dev-dependencies]
-tox = "^3.8"
 pytest = "^4.4"
 pytest-cov = "^2.6"
 

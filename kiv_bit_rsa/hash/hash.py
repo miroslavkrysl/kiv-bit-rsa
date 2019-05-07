@@ -19,13 +19,21 @@ class Hash(ABC):
     @classmethod
     @abstractmethod
     def chunk_size(cls) -> int:
-        """Get size of the method's data chunk.
+        """Get size of the methods data chunk.
 
         Get the size of the chunk of bytes that is processed
         during one round of the method. It could by 1 byte
         and more or 0 if the data is processed whole at once.
 
         :return: Size of the chunk in bytes.
+        """
+
+    @classmethod
+    @abstractmethod
+    def name(cls) -> str:
+        """Get hash methods name.
+
+        :return: The name of the hash method.
         """
 
     @abstractmethod

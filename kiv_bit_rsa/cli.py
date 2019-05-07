@@ -8,7 +8,8 @@ import click
 
 from kiv_bit_rsa.hash import Md5
 from kiv_bit_rsa.rsa import Rsa, TomlKeyFormatter
-from kiv_bit_rsa.sign import SignableFile, Signature
+from kiv_bit_rsa.sign import SignableBinaryIO, Signature
+from kiv_bit_rsa.sign.signature_formatter import TomlSignatureFormatter
 
 
 @click.group()
@@ -35,8 +36,8 @@ def keygen(bits, private, public):
 
 @click.command()
 @click.option('-k', '--key_file', 'key', required=True, type=click.File("r"), help='filepath of the encryption key')
-@click.option('-p', '--plaintext', 'plaintext', default="-", type=click.File('rb'), help='filepath where to read plaintext from')
-@click.option('-c', '--cipher', 'cipher', default="-", type=click.File('wb'), help='filepath where to print the cipher into')
+@click.option('-p', '--plaintext', 'plaintext', type=click.File('rb'), help='filepath where to read plaintext from')
+@click.option('-c', '--cipher', 'cipher', type=click.File('wb'), help='filepath where to print the cipher into')
 def encrypt(key, plaintext, cipher):
     """Encrypt a message using the RSA key."""
 
@@ -52,8 +53,8 @@ def encrypt(key, plaintext, cipher):
 
 @click.command()
 @click.option('-k', '--key_file', 'key', required=True, type=click.File("r"), help='filepath of the decryption key')
-@click.option('-c', '--cipher', 'cipher', default="-", type=click.File('rb'), help='filepath where to read cipher from')
-@click.option('-p', '--plaintext', 'plaintext', default="-", type=click.File('wb'), help='filepath where to print plaintext into')
+@click.option('-c', '--cipher', 'cipher', type=click.File('rb'), help='filepath where to read cipher from')
+@click.option('-p', '--plaintext', 'plaintext', type=click.File('wb'), help='filepath where to print plaintext into')
 def decrypt(key, cipher, plaintext):
     """Decrypt a message using the RSA key."""
 
@@ -69,20 +70,20 @@ def decrypt(key, cipher, plaintext):
 
 @click.command()
 @click.option('-k', '--key_file', 'key', required=True, type=click.File("r"), help='filepath of the signing key')
-@click.option('-f', '--file', 'file', required=True, type=click.File('r'), help='filepath of the file that will be signed')
+@click.option('-f', '--file', 'file', required=True, type=click.File('rb'), help='filepath of the file that will be signed')
 @click.option('-s', '--signature_file', 'sign', default="signature.toml", type=click.File('w'), help='filepath where to store the signature')
 def sign(key, file, sign):
     """Sign a file using the MD5 hash and RSA key."""
 
     key = TomlKeyFormatter().from_string(key.read())
-    signature = Signature.sign(SignableFile(file), Md5, key)
+    signature = Signature.sign(SignableBinaryIO(file), Md5, key)
 
     sign.write(TomlSignatureFormatter().to_string(signature))
 
 
 @click.command()
 @click.option('-k', '--key_file', 'key', required=True, type=click.File("r"), help='filepath of the decryption key')
-@click.option('-f', '--file', 'file', required=True, type=click.File('r'), help='filepath of the file that will be verified')
+@click.option('-f', '--file', 'file', required=True, type=click.File('rb'), help='filepath of the file that will be verified')
 @click.option('-s', '--signature_file', 'sign', default="signature.toml", type=click.File('r'), help='filepath of the signature')
 def verify(key, file, sign):
     """Verify a signed file."""
@@ -90,7 +91,7 @@ def verify(key, file, sign):
     key = TomlKeyFormatter().from_string(key.read())
     signature = TomlSignatureFormatter().from_string(sign.read())
 
-    if signature.verify(SignableFile(file)):
+    if signature.verify(SignableBinaryIO(file), key):
         click.echo("---verified---")
         exit(0)
     else:
