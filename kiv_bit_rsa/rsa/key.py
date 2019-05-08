@@ -47,6 +47,7 @@ class Key(ABC):
         RSA can only encrypt a number smaller than the key (num < key.mod).
 
         :param num: The number to be encrypted.
+        :raise OverflowError: When integer is to big for encryption.
         :return: Encrypted `num`.
         """
 
@@ -62,6 +63,7 @@ class Key(ABC):
         RSA can only decrypt a number smaller than the key (num < key.mod).
 
         :param num: The number to be decrypted.
+        :raise OverflowError: When integer is to big for decryption.
         :return: Decrypted `num`.
         """
 

@@ -7,9 +7,10 @@ signing and verifying
 import click
 
 from kiv_bit_rsa.hash import Md5
-from kiv_bit_rsa.rsa import Rsa, TomlKeyFormatter
+from kiv_bit_rsa.rsa import Rsa, TomlKeyFormatter, KeyFormatError
+from kiv_bit_rsa.rsa.rsa import DecryptError
 from kiv_bit_rsa.sign import SignableBinaryIO, Signature
-from kiv_bit_rsa.sign.signature_formatter import TomlSignatureFormatter
+from kiv_bit_rsa.sign.signature_formatter import TomlSignatureFormatter, SignatureFormatError
 
 
 @click.group()
@@ -43,12 +44,19 @@ def encrypt(key, plaintext, cipher):
 
     rsa = Rsa()
 
-    k = TomlKeyFormatter().from_string(key.read())
+    try:
+        k = TomlKeyFormatter().from_string(key.read())
 
-    p = plaintext.read()
-    c = rsa.encrypt(p, k)
+        p = plaintext.read()
+        c = rsa.encrypt(p, k)
 
-    cipher.write(c)
+        cipher.write(c)
+
+    except KeyFormatError:
+        click.echo("ERROR: Key is in bad format")
+
+    except OverflowError:
+        click.echo("ERROR: Message is to long for encryption with the given key.")
 
 
 @click.command()
@@ -60,12 +68,19 @@ def decrypt(key, cipher, plaintext):
 
     rsa = Rsa()
 
-    k = TomlKeyFormatter().from_string(key.read())
+    try:
+        k = TomlKeyFormatter().from_string(key.read())
 
-    c = cipher.read()
-    p = rsa.decrypt(c, k)
+        c = cipher.read()
+        p = rsa.decrypt(c, k)
 
-    plaintext.write(p)
+        plaintext.write(p)
+
+    except KeyFormatError:
+        click.echo("ERROR: Key is in bad format")
+
+    except DecryptError:
+        click.echo("ERROR: Key is wrong or message was badly padded before encryption")
 
 
 @click.command()
@@ -75,10 +90,14 @@ def decrypt(key, cipher, plaintext):
 def sign(key, file, sign):
     """Sign a file using the MD5 hash and RSA key."""
 
-    key = TomlKeyFormatter().from_string(key.read())
-    signature = Signature.sign(SignableBinaryIO(file), Md5, key)
+    try:
+        key = TomlKeyFormatter().from_string(key.read())
+        signature = Signature.sign(SignableBinaryIO(file), Md5, key)
 
-    sign.write(TomlSignatureFormatter().to_string(signature))
+        sign.write(TomlSignatureFormatter().to_string(signature))
+
+    except KeyFormatError:
+        click.echo("ERROR: Key is in bad format")
 
 
 @click.command()
@@ -88,15 +107,22 @@ def sign(key, file, sign):
 def verify(key, file, sign):
     """Verify a signed file."""
 
-    key = TomlKeyFormatter().from_string(key.read())
-    signature = TomlSignatureFormatter().from_string(sign.read())
+    try:
+        key = TomlKeyFormatter().from_string(key.read())
+        signature = TomlSignatureFormatter().from_string(sign.read())
 
-    if signature.verify(SignableBinaryIO(file), key):
-        click.echo("---verified---")
-        exit(0)
-    else:
-        click.echo("---denied---")
-        exit(1)
+        if signature.verify(SignableBinaryIO(file), key):
+            click.echo("---verified---")
+            exit(0)
+        else:
+            click.echo("---denied---")
+            exit(1)
+
+    except KeyFormatError:
+        click.echo("ERROR: Key is in bad format")
+
+    except SignatureFormatError:
+        click.echo("ERROR: Signature is in bad format")
 
 
 cli.add_command(keygen)

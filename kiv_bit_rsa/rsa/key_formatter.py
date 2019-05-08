@@ -64,6 +64,7 @@ class TomlKeyFormatter(KeyFormatter):
         in TOML format into Key.
 
         :param string: The key string representation.
+        :raise KeyFormatError: When key string is in bad format.
         :return: The Key.
         """
 

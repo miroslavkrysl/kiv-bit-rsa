@@ -12,7 +12,6 @@ toml = "^0.10.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^4.4"
-pytest-cov = "^2.6"
 
 [tool.poetry.scripts]
 mkrsa = 'kiv_bit_rsa:cli.cli'

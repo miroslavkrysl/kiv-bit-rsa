@@ -62,6 +62,7 @@ class TomlSignatureFormatter(SignatureFormatter):
         in TOML format into Signature instance.
 
         :param string: The signature string representation.
+        :raise SignatureFormatError: When signature string is in bad format.
         :return: The Signature.
         """
 

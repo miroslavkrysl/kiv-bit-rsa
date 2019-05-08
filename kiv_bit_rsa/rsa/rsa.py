@@ -21,6 +21,10 @@ class KeyTooShortError(RsaError):
     """Key length is too small."""
 
 
+class DecryptError(RsaError):
+    """Decryption failed."""
+
+
 class Rsa:
     """RSA cipher."""
 
@@ -43,6 +47,7 @@ class Rsa:
         """Generate RSA private and public keys of size n_bits.
 
         :param n_bits: Number of key modulus bits.
+        :raise KeyTooShortError: When given key size is too small.
         :return: The key pair.
         """
 
@@ -74,6 +79,7 @@ class Rsa:
 
         :param message: The message to encrypt.
         :param key: The encryption key.
+        :raise OverflowError: When message is too long for encryption padding.
         :return: Encrypted `message`.
         """
 
@@ -92,6 +98,7 @@ class Rsa:
 
         :param cipher: The cipher to decrypt.
         :param key: The decryption key.
+        :raise DecryptError: When message is wrongly decrypted - caused by wrong key or bad padding.
         :return: Decrypted `cipher`.
         """
 
@@ -99,7 +106,13 @@ class Rsa:
 
         p = key.decrypt(c)
 
-        return self._unpad_message(p.to_bytes(key.byte_size(), self.BYTE_ORDER))
+        try:
+            unpadded = self._unpad_message(p.to_bytes(key.byte_size(), self.BYTE_ORDER))
+
+        except WrongPaddingError:
+            raise DecryptError("Message can not be decrypted.")
+
+        return unpadded
 
     def _pad_message(self,
                      message: bytes,
@@ -108,6 +121,7 @@ class Rsa:
 
         :param message: The message to pad.
         :param length: The message length wanted after pad.
+        :raise OverflowError: When message is too long for padding.
         :return: Padded message.
         """
 
@@ -130,6 +144,7 @@ class Rsa:
         """Remove padding from the message.
 
         :param message: The message to unpad.
+        :raise WrongPaddingError: When message is badly padded.
         :return: Unpadded message.
         """
 
