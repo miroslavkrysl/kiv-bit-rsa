@@ -3,7 +3,7 @@ Required dependencies for instalation
 
 python 3.7
 
-poetry 0.12.15
+[poetry](https://github.com/sdispater/poetry) 0.12.15
 
 Instalation
 ===========
